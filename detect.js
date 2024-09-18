@@ -106,19 +106,19 @@ function stringSimilarity(str1, str2) {
 function determineMatchType(str1, str2) {
     const similarity = stringSimilarity(str1, str2);
     const weightedSimilarity = (
-        parseFloat(similarity.levenshtein) * 0.15 +
-        parseFloat(similarity.jaroWinkler) * 0.40 +
-        parseFloat(similarity.cosine) * 0.25 +
+        parseFloat(similarity.levenshtein) * 0.20 +
+        parseFloat(similarity.jaroWinkler) * 0.45 +
+        parseFloat(similarity.cosine) * 0.15 +
         parseFloat(similarity.nGram) * 0.20
     );
     if (weightedSimilarity >= 95) return "Full Match";
     if (weightedSimilarity >= 75) return "Strong Partial Match";
-    if (weightedSimilarity >= 55) return "Partial Match";
-    if (weightedSimilarity >= 40) return "Weak Partial Match";
+    if (weightedSimilarity >= 60) return "Partial Match";
+    if (weightedSimilarity >= 50) return "Weak Partial Match";
     return "No Significant Match";
 }
 
-const str1 = "hello Apt 411 Washington DC 20001";
+const str1 = "Apt 411 Washington DC 20001";
 const str2 = "1730 7th St NW Apt 411, Washington, DC 20001";
 console.log(`Match Type: ${determineMatchType(str1, str2)}`);
 console.log(`Similarity Scores:`, stringSimilarity(str1, str2));
