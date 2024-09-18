@@ -1,5 +1,4 @@
 function levenshteinDistance(str1, str2) {
-    str1 = str1.toLowerCase(); str2 = str2.toLowerCase();
     const m = str1.length, n = str2.length;
     const dp = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
     for (let i = 0; i <= m; i++) dp[i][0] = i;
@@ -57,20 +56,69 @@ function jaroWinklerSimilarity(str1, str2) {
     return (jaroWinkler(str1.toLowerCase(), str2.toLowerCase()) * 100).toFixed(2);
 }
 
+function cosineSimilarity(str1, str2) {
+    const words1 = str1.toLowerCase().split(/\s+/);
+    const words2 = str2.toLowerCase().split(/\s+/);
+    const uniqueWords = new Set([...words1, ...words2]);
+    const vector1 = Array(uniqueWords.size).fill(0);
+    const vector2 = Array(uniqueWords.size).fill(0);
+    
+    [...uniqueWords].forEach((word, index) => {
+        vector1[index] = words1.filter(w => w === word).length;
+        vector2[index] = words2.filter(w => w === word).length;
+    });
+    
+    const dotProduct = vector1.reduce((sum, v, i) => sum + v * vector2[i], 0);
+    const magnitude1 = Math.sqrt(vector1.reduce((sum, v) => sum + v * v, 0));
+    const magnitude2 = Math.sqrt(vector2.reduce((sum, v) => sum + v * v, 0));
+    
+    return dotProduct / (magnitude1 * magnitude2);
+}
+
+function nGramSimilarity(str1, str2, n = 2) {
+    const getNGrams = (str, n) => {
+        const ngrams = [];
+        for (let i = 0; i <= str.length - n; i++) {
+            ngrams.push(str.slice(i, i + n));
+        }
+        return new Set(ngrams);
+    };
+    
+    const ngrams1 = getNGrams(str1.toLowerCase(), n);
+    const ngrams2 = getNGrams(str2.toLowerCase(), n);
+    const intersection = new Set([...ngrams1].filter(x => ngrams2.has(x)));
+    const union = new Set([...ngrams1, ...ngrams2]);
+    
+    return intersection.size / union.size;
+}
+
 function stringSimilarity(str1, str2) {
-    return { levenshtein: levenshteinSimilarity(str1, str2), jaroWinkler: jaroWinklerSimilarity(str1, str2) };
+    str1 = str1.toLowerCase();
+    str2 = str2.toLowerCase();
+    return {
+        levenshtein: levenshteinSimilarity(str1, str2),
+        jaroWinkler: jaroWinklerSimilarity(str1, str2),
+        cosine: (cosineSimilarity(str1, str2) * 100).toFixed(2),
+        nGram: (nGramSimilarity(str1, str2, 2) * 100).toFixed(2),
+    };
 }
 
 function determineMatchType(str1, str2) {
     const similarity = stringSimilarity(str1, str2);
-    const weightedSimilarity = (parseFloat(similarity.levenshtein) * 0.4) + (parseFloat(similarity.jaroWinkler) * 0.6);
+    const weightedSimilarity = (
+        parseFloat(similarity.levenshtein) * 0.15 +
+        parseFloat(similarity.jaroWinkler) * 0.40 +
+        parseFloat(similarity.cosine) * 0.25 +
+        parseFloat(similarity.nGram) * 0.20
+    );
     if (weightedSimilarity >= 95) return "Full Match";
-    if (weightedSimilarity >= 80) return "Strong Partial Match";
-    if (weightedSimilarity >= 60) return "Partial Match";
+    if (weightedSimilarity >= 75) return "Strong Partial Match";
+    if (weightedSimilarity >= 55) return "Partial Match";
     if (weightedSimilarity >= 40) return "Weak Partial Match";
     return "No Significant Match";
 }
 
-const str1 = "1730 7th st nw washington dc 20001";
+const str1 = "hello Apt 411 Washington DC 20001";
 const str2 = "1730 7th St NW Apt 411, Washington, DC 20001";
 console.log(`Match Type: ${determineMatchType(str1, str2)}`);
+console.log(`Similarity Scores:`, stringSimilarity(str1, str2));
