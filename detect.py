@@ -1,5 +1,6 @@
+import math
+
 def levenshtein_distance(str1, str2):
-    str1, str2 = str1.lower(), str2.lower()
     m, n = len(str1), len(str2)
     dp = [[0] * (n + 1) for _ in range(m + 1)]
     for i in range(m + 1):
@@ -24,7 +25,7 @@ def jaro_distance(s1, s2):
     if s1 == s2:
         return 1.0
     len1, len2 = len(s1), len(s2)
-    max_dist = max(0, max(len1, len2) // 2 - 1)
+    max_dist = max(len1, len2) // 2 - 1
     match1 = [False] * len1
     match2 = [False] * len2
     matches = 0
@@ -33,22 +34,20 @@ def jaro_distance(s1, s2):
         start = max(0, i - max_dist)
         end = min(i + max_dist + 1, len2)
         for j in range(start, end):
-            if match2[j] or s1[i] != s2[j]:
-                continue
-            match1[i] = match2[j] = True
-            matches += 1
-            break
+            if not match2[j] and s1[i] == s2[j]:
+                match1[i] = match2[j] = True
+                matches += 1
+                break
     if matches == 0:
         return 0.0
     k = 0
     for i in range(len1):
-        if not match1[i]:
-            continue
-        while not match2[k]:
+        if match1[i]:
+            while not match2[k]:
+                k += 1
+            if s1[i] != s2[k]:
+                transpositions += 1
             k += 1
-        if s1[i] != s2[k]:
-            transpositions += 1
-        k += 1
     return (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3.0
 
 def common_prefix_length(s1, s2):
@@ -60,23 +59,57 @@ def common_prefix_length(s1, s2):
 def jaro_winkler_similarity(str1, str2):
     return round(jaro_winkler(str1.lower(), str2.lower()) * 100, 2)
 
+def cosine_similarity(str1, str2):
+    words1 = str1.lower().split()
+    words2 = str2.lower().split()
+    unique_words = set(words1 + words2)
+    vector1 = [words1.count(word) for word in unique_words]
+    vector2 = [words2.count(word) for word in unique_words]
+    dot_product = sum(v1 * v2 for v1, v2 in zip(vector1, vector2))
+    magnitude1 = math.sqrt(sum(v * v for v in vector1))
+    magnitude2 = math.sqrt(sum(v * v for v in vector2))
+    return dot_product / (magnitude1 * magnitude2)
+
+def n_gram_similarity(str1, str2, n=2):
+    def get_n_grams(s, n):
+        return set(s[i:i+n] for i in range(len(s) - n + 1))
+    
+    ngrams1 = get_n_grams(str1.lower(), n)
+    ngrams2 = get_n_grams(str2.lower(), n)
+    intersection = ngrams1.intersection(ngrams2)
+    union = ngrams1.union(ngrams2)
+    return len(intersection) / len(union)
+
 def string_similarity(str1, str2):
-    return {"levenshtein": levenshtein_similarity(str1, str2), "jaroWinkler": jaro_winkler_similarity(str1, str2)}
+    str1 = str1.lower()
+    str2 = str2.lower()
+    return {
+        'levenshtein': levenshtein_similarity(str1, str2),
+        'jaroWinkler': jaro_winkler_similarity(str1, str2),
+        'cosine': round(cosine_similarity(str1, str2) * 100, 2),
+        'nGram': round(n_gram_similarity(str1, str2, 2) * 100, 2),
+    }
 
 def determine_match_type(str1, str2):
     similarity = string_similarity(str1, str2)
-    weighted_similarity = (float(similarity["levenshtein"]) * 0.4) + (float(similarity["jaroWinkler"]) * 0.6)
+    weighted_similarity = (
+        float(similarity['levenshtein']) * 0.15 +
+        float(similarity['jaroWinkler']) * 0.40 +
+        float(similarity['cosine']) * 0.25 +
+        float(similarity['nGram']) * 0.20
+    )
     if weighted_similarity >= 95:
         return "Full Match"
-    elif weighted_similarity >= 80:
+    if weighted_similarity >= 75:
         return "Strong Partial Match"
-    elif weighted_similarity >= 60:
+    if weighted_similarity >= 55:
         return "Partial Match"
-    elif weighted_similarity >= 40:
+    if weighted_similarity >= 40:
         return "Weak Partial Match"
-    else:
-        return "No Significant Match"
+    return "No Significant Match"
 
-str1 = "1730 7th st nw washington dc 20001"
+# Example usage
+str1 = "Apt 411 Washington DC 20001"
 str2 = "1730 7th St NW Apt 411, Washington, DC 20001"
 print(f"Match Type: {determine_match_type(str1, str2)}")
+print(f"Similarity Scores: {string_similarity(str1, str2)}")
